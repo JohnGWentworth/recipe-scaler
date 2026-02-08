@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Recipe Scaler Pro</title>
+    <meta name="description" content="Instantly scale recipes for any number of servings. The perfect kitchen companion for Fire Tablets.">
+    <meta name="theme-color" content="#f7fafc">
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts: Serif for that "Cookbook" feel -->
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Open Sans', sans-serif; transition: background-color 0.3s, color 0.3s; }
+        h1, h2, .recipe-text { font-family: 'Merriweather', serif; }
+        
+        /* Custom Scrollbar for Ingredients */
+        .recipe-input::-webkit-scrollbar { width: 8px; }
+        .recipe-input::-webkit-scrollbar-track { background: transparent; }
+        .recipe-input::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 4px; }
+
+        /* Themes */
+        .theme-light { --bg: #f7fafc; --card: #ffffff; --text: #2d3748; --accent: #ed8936; --border: #e2e8f0; --modal-bg: rgba(255,255,255,0.95); }
+        .theme-dark { --bg: #1a202c; --card: #2d3748; --text: #e2e8f0; --accent: #f6ad55; --border: #4a5568; --modal-bg: rgba(26,32,44,0.95); }
+
+        body.theme-light { background-color: var(--bg); color: var(--text); }
+        body.theme-dark { background-color: var(--bg); color: var(--text); }
+
+        .card { background-color: var(--card); border: 1px solid var(--border); }
+        .accent-text { color: var(--accent); }
+        .accent-bg { background-color: var(--accent); color: white; }
+        
+        /* Smooth Scale Transition */
+        .ingredient-amount { transition: color 0.2s; }
+        .scale-up { color: #48bb78; font-weight: bold; }
+        .scale-down { color: #f56565; font-weight: bold; }
+
+        /* Library Modal Slide-in */
+        #libraryModal { transition: transform 0.3s ease-in-out; }
+        .slide-out { transform: translateX(100%); }
+        .slide-in { transform: translateX(0); }
+    </style>
+</head>
+<body class="theme-dark h-screen flex flex-col overflow-hidden relative">
+
+    <!-- Header -->
+    <header class="p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700 bg-opacity-90 backdrop-blur-sm z-10 card">
+        <div class="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 accent-text" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <h1 class="text-xl font-bold tracking-tight">Recipe Scaler <span class="text-xs font-sans font-normal opacity-60 uppercase ml-1">Pro</span></h1>
+        </div>
+        <div class="flex gap-3">
+            <button id="libraryBtn" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition relative" title="My Recipes">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+            </button>
+            <button id="wakeLockBtn" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition opacity-50" title="Keep Screen On (Chef Mode)">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </button>
+            <button id="themeBtn" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition opacity-50" title="Toggle Theme">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col md:flex-row h-full overflow-hidden relative z-0">
+        
+        <!-- Input Section (Left/Top) -->
+        <section class="flex-1 p-4 md:p-6 flex flex-col gap-4 border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
+            <div class="flex justify-between items-end">
+                <label class="text-sm font-bold uppercase tracking-wide opacity-60">Original Recipe</label>
+                <div class="flex gap-4">
+                    <button id="saveBtn" class="text-xs font-bold text-blue-500 hover:text-blue-600 flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+                        Save
+                    </button>
+                    <button id="clearBtn" class="text-xs text-red-400 hover:text-red-500">Clear</button>
+                </div>
+            </div>
+            
+            <textarea id="inputArea" class="recipe-input flex-1 w-full p-4 rounded-lg card text-lg leading-relaxed focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none font-serif placeholder-gray-400 dark:placeholder-gray-600" placeholder="Paste ingredients here...&#10;&#10;Example:&#10;2 cups flour&#10;1/2 tsp salt&#10;3 eggs"></textarea>
+            
+            <!-- Modified Base Servings Input: No Buttons, Just Data Entry -->
+            <div class="flex justify-between items-center bg-gray-100 dark:bg-gray-800 p-3 rounded-lg">
+                <span class="text-sm font-bold opacity-70">Original Servings:</span>
+                <input type="number" id="baseServings" value="4" class="w-16 text-center bg-transparent font-bold border-b border-gray-300 focus:outline-none focus:border-orange-400 transition-colors" min="1">
+            </div>
+        </section>
+
+        <!-- Output Section (Right/Bottom) -->
+        <section class="flex-1 p-4 md:p-6 flex flex-col gap-4 bg-gray-50 dark:bg-gray-900/50">
+            <div class="flex justify-between items-center">
+                <label class="text-sm font-bold uppercase tracking-wide opacity-60">Scaled Recipe</label>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs opacity-50">Multiplier:</span>
+                        <span id="multiplierDisplay" class="font-mono font-bold accent-text">1.00x</span>
+                    </div>
+                    <!-- Share Button -->
+                    <button id="shareBtn" class="text-xs font-bold text-green-500 hover:text-green-600 flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                        Share
+                    </button>
+                </div>
+            </div>
+
+            <!-- The Scaled Output Display -->
+            <div id="outputArea" class="flex-1 w-full p-4 rounded-lg card overflow-y-auto font-serif text-lg leading-loose shadow-inner relative">
+                <div class="opacity-40 text-center mt-10 italic">Scaled ingredients will appear here...</div>
+            </div>
+
+            <!-- Controls -->
+            <div class="card p-4 rounded-xl shadow-lg">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-sm font-bold opacity-70">I want to cook for:</span>
+                    <div class="flex items-center gap-2">
+                        <span id="targetServingsDisplay" class="text-2xl font-bold accent-text">4</span>
+                        <span class="text-sm opacity-60">people</span>
+                    </div>
+                </div>
+                
+                <input type="range" id="scaleSlider" min="1" max="20" value="4" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-orange-500">
+                
+                <div class="flex justify-between mt-2">
+                    <button id="halfBtn" class="text-xs px-3 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">Half (0.5x)</button>
+                    <button id="doubleBtn" class="text-xs px-3 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">Double (2x)</button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- RECIPE LIBRARY MODAL (Slide-in) -->
+    <div id="libraryModal" class="fixed inset-y-0 right-0 w-full md:w-96 shadow-2xl z-20 slide-out flex flex-col" style="background-color: var(--modal-bg); backdrop-filter: blur(10px);">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <h2 class="text-xl font-bold">My Recipes</h2>
+            <button id="closeLibraryBtn" class="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+        </div>
+        <div id="recipeList" class="flex-1 overflow-y-auto p-4 space-y-3">
+            <!-- Recipes Injected Here -->
+            <div class="text-center opacity-50 mt-10">No saved recipes yet.<br>Click 'Save' on a recipe to add it here.</div>
+        </div>
+    </div>
+
+    <script>
+        // --- State ---
+        let baseServings = 4;
+        let targetServings = 4;
+        let wakeLock = null;
+        let savedRecipes = JSON.parse(localStorage.getItem('recipeScaler_saved')) || [];
+        
+        // --- Elements ---
+        const inputArea = document.getElementById('inputArea');
+        const outputArea = document.getElementById('outputArea');
+        const baseServingsInput = document.getElementById('baseServings');
+        const scaleSlider = document.getElementById('scaleSlider');
+        const targetServingsDisplay = document.getElementById('targetServingsDisplay');
+        const multiplierDisplay = document.getElementById('multiplierDisplay');
+        const wakeLockBtn = document.getElementById('wakeLockBtn');
+        const themeBtn = document.getElementById('themeBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const libraryBtn = document.getElementById('libraryBtn');
+        const libraryModal = document.getElementById('libraryModal');
+        const closeLibraryBtn = document.getElementById('closeLibraryBtn');
+        const recipeList = document.getElementById('recipeList');
+        const shareBtn = document.getElementById('shareBtn');
+        
+        // --- Parsing Logic ---
+        function parseQuantity(str) {
+            if (str.includes(' ') && str.includes('/')) {
+                const parts = str.split(' ');
+                if (parts.length === 2) {
+                    const whole = parseFloat(parts[0]);
+                    const frac = parts[1].split('/');
+                    if (frac.length === 2) return whole + (parseFloat(frac[0]) / parseFloat(frac[1]));
+                }
+            }
+            if (str.includes('/')) {
+                const frac = str.split('/');
+                if (frac.length === 2) return parseFloat(frac[0]) / parseFloat(frac[1]);
+            }
+            return parseFloat(str);
+        }
+
+        function formatQuantity(num) {
+            if (isNaN(num)) return "";
+            num = Math.round(num * 100) / 100;
+            const whole = Math.floor(num);
+            const decimal = num - whole;
+            let fraction = "";
+            const tolerance = 0.05;
+            if (Math.abs(decimal - 0.25) < tolerance) fraction = "1/4";
+            else if (Math.abs(decimal - 0.33) < tolerance) fraction = "1/3";
+            else if (Math.abs(decimal - 0.5) < tolerance) fraction = "1/2";
+            else if (Math.abs(decimal - 0.66) < tolerance) fraction = "2/3";
+            else if (Math.abs(decimal - 0.75) < tolerance) fraction = "3/4";
+            else if (decimal > 0) fraction = decimal.toFixed(2).replace('.00', '');
+
+            if (whole > 0 && fraction !== "") return `${whole} ${fraction}`;
+            if (whole > 0) return whole;
+            if (fraction !== "") return fraction;
+            return num;
+        }
+
+        function scaleRecipe() {
+            const rawText = inputArea.value;
+            const multiplier = targetServings / baseServings;
+            multiplierDisplay.innerText = multiplier.toFixed(2) + "x";
+            
+            if (!rawText.trim()) {
+                outputArea.innerHTML = '<div class="opacity-40 text-center mt-10 italic">Scaled ingredients will appear here...</div>';
+                return;
+            }
+
+            const lines = rawText.split('\n');
+            let html = "";
+
+            lines.forEach(line => {
+                if (!line.trim()) {
+                    html += "<br>";
+                    return;
+                }
+
+                // 1. Try to detect a Range first (e.g., "16 - 22" or "1 to 2")
+                // Regex explanation:
+                // Group 1: First Number (digits, spaces, fractions)
+                // Group 2: Separator (hyphen, en-dash, or 'to')
+                // Group 3: Second Number
+                // Group 4: The rest of the string
+                const rangeMatch = line.match(/^([\d\s\/.]+)\s*([-–]|to)\s*([\d\s\/.]+)(.*)/i);
+
+                if (rangeMatch && /\d/.test(rangeMatch[1]) && /\d/.test(rangeMatch[3])) {
+                    const qty1Str = rangeMatch[1].trim();
+                    const separator = rangeMatch[2]; 
+                    const qty2Str = rangeMatch[3].trim();
+                    const rest = rangeMatch[4];
+
+                    const val1 = parseQuantity(qty1Str);
+                    const val2 = parseQuantity(qty2Str);
+
+                    if (!isNaN(val1) && !isNaN(val2)) {
+                        const newVal1 = val1 * multiplier;
+                        const formatted1 = formatQuantity(newVal1);
+                        
+                        const newVal2 = val2 * multiplier;
+                        const formatted2 = formatQuantity(newVal2);
+
+                        const colorClass = multiplier > 1 ? 'scale-up' : (multiplier < 1 ? 'scale-down' : 'accent-text');
+                        
+                        html += `<div><span class="${colorClass}">${formatted1} ${separator} ${formatted2}</span>${rest}</div>`;
+                        return; // Skip the single number check below
+                    }
+                }
+
+                // 2. Fallback to Single Number match (e.g., "1 cup")
+                const match = line.match(/^([\d\s\/.]+)(.*)/);
+                if (match && /\d/.test(match[1])) { 
+                    const originalQtyStr = match[1].trim();
+                    const rest = match[2];
+                    const val = parseQuantity(originalQtyStr);
+                    if (!isNaN(val)) {
+                        const newVal = val * multiplier;
+                        const formatted = formatQuantity(newVal);
+                        const colorClass = multiplier > 1 ? 'scale-up' : (multiplier < 1 ? 'scale-down' : 'accent-text');
+                        html += `<div><span class="${colorClass}">${formatted}</span>${rest}</div>`;
+                    } else {
+                        html += `<div>${line}</div>`;
+                    }
+                } else {
+                    html += `<div>${line}</div>`;
+                }
+            });
+            outputArea.innerHTML = html;
+        }
+
+        // --- Share Logic ---
+        function generateShareableText() {
+            const rawText = inputArea.value;
+            const multiplier = targetServings / baseServings;
+            
+            if (!rawText.trim()) return "";
+
+            let text = `Recipe Scaled to ${targetServings} Servings (${multiplier.toFixed(2)}x):\n\n`;
+            
+            const lines = rawText.split('\n');
+            lines.forEach(line => {
+                if (!line.trim()) {
+                    text += "\n";
+                    return;
+                }
+
+                // Share Logic: Check Range First
+                const rangeMatch = line.match(/^([\d\s\/.]+)\s*([-–]|to)\s*([\d\s\/.]+)(.*)/i);
+                if (rangeMatch && /\d/.test(rangeMatch[1]) && /\d/.test(rangeMatch[3])) {
+                    const qty1Str = rangeMatch[1].trim();
+                    const separator = rangeMatch[2];
+                    const qty2Str = rangeMatch[3].trim();
+                    const rest = rangeMatch[4];
+                    const val1 = parseQuantity(qty1Str);
+                    const val2 = parseQuantity(qty2Str);
+
+                    if (!isNaN(val1) && !isNaN(val2)) {
+                        const newVal1 = val1 * multiplier;
+                        const formatted1 = formatQuantity(newVal1);
+                        const newVal2 = val2 * multiplier;
+                        const formatted2 = formatQuantity(newVal2);
+                        text += `- ${formatted1} ${separator} ${formatted2}${rest}\n`;
+                        return;
+                    }
+                }
+
+                // Share Logic: Single Number Fallback
+                const match = line.match(/^([\d\s\/.]+)(.*)/);
+                if (match && /\d/.test(match[1])) { 
+                    const originalQtyStr = match[1].trim();
+                    const rest = match[2];
+                    const val = parseQuantity(originalQtyStr);
+                    if (!isNaN(val)) {
+                        const newVal = val * multiplier;
+                        const formatted = formatQuantity(newVal);
+                        text += `- ${formatted}${rest}\n`;
+                    } else {
+                        text += `- ${line}\n`;
+                    }
+                } else {
+                    text += `${line}\n`;
+                }
+            });
+            return text;
+        }
+
+        shareBtn.addEventListener('click', () => {
+            const text = generateShareableText();
+            if(!text) return alert("Nothing to share!");
+            
+            // Try Native Share first (Mobile)
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Scaled Recipe',
+                    text: text
+                }).catch(console.error);
+            } else {
+                // Fallback to Clipboard
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    const originalText = shareBtn.innerHTML;
+                    shareBtn.innerHTML = `<span class="text-green-600 font-bold">Copied!</span>`;
+                    setTimeout(() => shareBtn.innerHTML = originalText, 2000);
+                } catch (err) {
+                    alert("Unable to copy to clipboard");
+                }
+                document.body.removeChild(textArea);
+            }
+        });
+
+        // --- Library Logic ---
+        function renderRecipes() {
+            if (savedRecipes.length === 0) {
+                recipeList.innerHTML = `<div class="text-center opacity-50 mt-10">No saved recipes yet.<br>Click 'Save' on a recipe to add it here.</div>`;
+                return;
+            }
+            recipeList.innerHTML = savedRecipes.map((r, index) => `
+                <div class="card p-3 rounded-lg flex justify-between items-center group hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer" onclick="loadRecipe(${index})">
+                    <div class="overflow-hidden">
+                        <div class="font-bold truncate font-serif">${r.title}</div>
+                        <div class="text-xs opacity-60">Serves ${r.servings} • ${r.date}</div>
+                    </div>
+                    <button onclick="event.stopPropagation(); deleteRecipe(${index})" class="p-2 text-red-400 hover:text-red-600 hover:bg-red-100 rounded dark:hover:bg-red-900/30">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        window.loadRecipe = (index) => {
+            const r = savedRecipes[index];
+            inputArea.value = r.content;
+            baseServings = r.servings;
+            baseServingsInput.value = baseServings;
+            
+            // Reset scale defaults
+            targetServings = baseServings;
+            scaleSlider.value = targetServings;
+            targetServingsDisplay.innerText = targetServings;
+            
+            scaleRecipe();
+            libraryModal.classList.remove('slide-in');
+            libraryModal.classList.add('slide-out');
+        };
+
+        window.deleteRecipe = (index) => {
+            if(confirm("Delete this recipe?")) {
+                savedRecipes.splice(index, 1);
+                localStorage.setItem('recipeScaler_saved', JSON.stringify(savedRecipes));
+                renderRecipes();
+            }
+        };
+
+        saveBtn.addEventListener('click', () => {
+            if (!inputArea.value.trim()) return alert("Enter a recipe first!");
+            const title = prompt("Name this recipe:", "My Recipe");
+            if (title) {
+                const newRecipe = {
+                    title: title,
+                    content: inputArea.value,
+                    servings: baseServings,
+                    date: new Date().toLocaleDateString()
+                };
+                savedRecipes.unshift(newRecipe); // Add to top
+                localStorage.setItem('recipeScaler_saved', JSON.stringify(savedRecipes));
+                renderRecipes();
+                alert("Recipe saved!");
+            }
+        });
+
+        libraryBtn.addEventListener('click', () => {
+            renderRecipes();
+            libraryModal.classList.remove('slide-out');
+            libraryModal.classList.add('slide-in');
+        });
+
+        closeLibraryBtn.addEventListener('click', () => {
+            libraryModal.classList.remove('slide-in');
+            libraryModal.classList.add('slide-out');
+        });
+
+        // --- Event Listeners ---
+        inputArea.addEventListener('input', scaleRecipe);
+        
+        baseServingsInput.addEventListener('change', (e) => {
+            baseServings = parseFloat(e.target.value) || 1;
+            if (baseServings < 1) baseServings = 1;
+            
+            // UX FIX: Sync target servings to match base servings when base is changed.
+            // This ensures the "Scaled Recipe" doesn't shrink/grow just because 
+            // the user is defining the original portion size.
+            targetServings = baseServings;
+            
+            // Update UI elements on the right side
+            scaleSlider.value = targetServings;
+            targetServingsDisplay.innerText = targetServings;
+            
+            // Adjust slider range if input is larger than default max
+            if (targetServings > scaleSlider.max) scaleSlider.max = targetServings + 10;
+            
+            scaleRecipe();
+        });
+
+        scaleSlider.addEventListener('input', (e) => {
+            targetServings = parseInt(e.target.value);
+            targetServingsDisplay.innerText = targetServings;
+            scaleRecipe();
+        });
+
+        document.getElementById('doubleBtn').addEventListener('click', () => {
+            targetServings = baseServings * 2;
+            if (targetServings > scaleSlider.max) scaleSlider.max = targetServings + 5;
+            scaleSlider.value = targetServings;
+            targetServingsDisplay.innerText = targetServings;
+            scaleRecipe();
+        });
+
+        document.getElementById('halfBtn').addEventListener('click', () => {
+            targetServings = Math.max(1, Math.floor(baseServings / 2));
+            scaleSlider.value = targetServings;
+            targetServingsDisplay.innerText = targetServings;
+            scaleRecipe();
+        });
+
+        clearBtn.addEventListener('click', () => {
+            if(confirm("Clear current recipe?")) {
+                inputArea.value = "";
+                scaleRecipe();
+                inputArea.focus();
+            }
+        });
+
+        // --- Wake Lock (Chef Mode) ---
+        wakeLockBtn.addEventListener('click', async () => {
+            if (!('wakeLock' in navigator)) {
+                alert("Your device does not support keeping the screen awake.");
+                return;
+            }
+
+            if (wakeLock !== null) {
+                wakeLock.release();
+                wakeLock = null;
+                wakeLockBtn.classList.remove('accent-text', 'bg-orange-100', 'dark:bg-gray-700');
+                wakeLockBtn.classList.add('opacity-50');
+            } else {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    wakeLockBtn.classList.remove('opacity-50');
+                    wakeLockBtn.classList.add('accent-text', 'bg-orange-100', 'dark:bg-gray-700');
+                    
+                    wakeLock.addEventListener('release', () => {
+                        wakeLock = null;
+                        wakeLockBtn.classList.remove('accent-text', 'bg-orange-100', 'dark:bg-gray-700');
+                        wakeLockBtn.classList.add('opacity-50');
+                    });
+                } catch (err) {
+                    console.error(`${err.name}, ${err.message}`);
+                }
+            }
+        });
+
+        // --- Theme Toggle ---
+        themeBtn.addEventListener('click', () => {
+            const body = document.body;
+            if (body.classList.contains('theme-light')) {
+                body.classList.remove('theme-light');
+                body.classList.add('theme-dark');
+            } else {
+                body.classList.remove('theme-dark');
+                body.classList.add('theme-light');
+            }
+        });
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
+            navigator.serviceWorker.register('sw.js').catch(() => {});
+        }
+        
+        // Initial Scale call
+        scaleRecipe();
+    </script>
+</body>
+</html>

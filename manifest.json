@@ -2,7 +2,7 @@
   "name": "Recipe Scaler Pro",
   "short_name": "RecipeScaler",
   "description": "Instantly scale recipes for any number of servings. The perfect kitchen companion.",
-  "start_url": ".",
+  "start_url": "https://johngwentworth.github.io/recipe-scaler/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f7fafc",
@@ -21,4 +21,5 @@
       "purpose": "any maskable"
     }
   ]
+
 }
